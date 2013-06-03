@@ -284,6 +284,48 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
                                             (FLAGS.eqlx_chap_login, FLAGS.eqlx_chap_password)
         return model_update
 
+    def _update_volume_status(self):
+        """Retrieve status info from volume group."""
+
+        LOG.debug(_("Updating volume status"))
+        data = {}
+        backend_name = "eqlx"
+        if self.configuration:
+            backend_name = self.configuration.safe_get('volume_backend_name')
+        data["volume_backend_name"] = backend_name or 'eqlx'
+        data["vendor_name"] = 'Open Source'
+        data["driver_version"] = '1.0'
+        data["storage_protocol"] = 'iSCSI'
+
+        data['reserved_percentage'] = 100
+        data['QoS_support'] = False
+        total = 'infinite'
+        free = 'infinite'
+        data['total_capacity_gb'] = total
+        data['free_capacity_gb'] = free
+
+        try:
+            for line in self._execute('pool', 'select',
+              FLAGS.eqlx_pool, 'show'):
+                if line.startswith('TotalCapacity:'):
+                    _nop, _nop, val = line.rstrip().partition(' ')
+                    if val.endswith('GB'):
+                        total = float(val.partition('GB')[0])
+                    elif val.endswith('TB'):
+                        total = 1000 * float(val.partition('TB')[0])
+                    data['total_capacity_gb'] = total
+                if line.startswith('FreeSpace:'):
+                    _nop, _nop, val = line.rstrip().partition(' ')
+                    if val.endswith('GB'):
+                        free = float(val.partition('GB')[0])
+                    elif val.endswith('TB'):
+                        free = 1000 * float(val.partition('TB')[0])
+                    data['free_capacity_gb'] = free
+        except exception.ProcessExecutionError:
+            LOG.exception(_('Error refreshing volume stats'))
+
+        self._stats = data
+
     def do_setup(self, context):
         """Disable cli confirmation and tune output format"""
         disabled_cli_features = ('confirmation', 'paging', 'events',
