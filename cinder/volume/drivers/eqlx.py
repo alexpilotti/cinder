@@ -329,6 +329,13 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
                             'clone', volume['name'])
         return self._get_volume_data(out)
 
+    def create_cloned_volume(self, volume, src_vref):
+        """Creates a clone of the specified volume."""
+        volume_name = FLAGS.volume_name_template % src_vref['id']
+        out = self._execute('volume', 'select', volume['name'], 'clone',
+                            volume_name)
+        return self._get_volume_data(out)
+
     def delete_snapshot(self, snapshot):
         """Delete volume's snapshot"""
         self._execute('volume', 'select', snapshot['volume_name'],
