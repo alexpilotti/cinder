@@ -20,35 +20,35 @@ LOG = logging.getLogger(__name__)
 
 eqlx_opts = [
     cfg.StrOpt('eqlx_group_name',
-        default='group-0',
-        help='Group name to use for creating volumes'),
+               default='group-0',
+               help='Group name to use for creating volumes'),
     cfg.IntOpt('eqlx_ssh_keepalive_interval',
-        default=1200,
-        help='Seconds to wait before sending a keepalive packet'),
+               default=1200,
+               help='Seconds to wait before sending a keepalive packet'),
     cfg.IntOpt('eqlx_cli_timeout',
-        default=30,
-        help='Timeout for the Group Manager cli command execution'),
+               default=30,
+               help='Timeout for the Group Manager cli command execution'),
     cfg.IntOpt('eqlx_cli_max_retries',
-        default=5,
-        help='Maximum retry count for reconnection'),
+               default=5,
+               help='Maximum retry count for reconnection'),
     cfg.IntOpt('eqlx_cli_retries_timeout',
-        default=30,
-        help='Seconds to sleep before the next reconnection retry'),
+               default=30,
+               help='Seconds to sleep before the next reconnection retry'),
     cfg.BoolOpt('eqlx_use_chap',
-        default=False,
-        help='Use CHAP authentificaion for targets?'),
+                default=False,
+                help='Use CHAP authentificaion for targets?'),
     cfg.StrOpt('eqlx_chap_login',
-        default='admin',
-        help='Existing CHAP account name'),
+               default='admin',
+               help='Existing CHAP account name'),
     cfg.StrOpt('eqlx_chap_password',
-        default='password',
-        help='Password for specified CHAP account name'),
+               default='password',
+               help='Password for specified CHAP account name'),
     cfg.BoolOpt('eqlx_verbose_ssh',
-        default=False,
-        help='Print SSH debugging output to stderr'),
+                default=False,
+                help='Print SSH debugging output to stderr'),
     cfg.StrOpt('eqlx_pool',
-        default='default',
-        help='Pool in which volumes will be created')
+               default='default',
+               help='Pool in which volumes will be created')
 ]
 
 if __name__ != '__main__':
@@ -81,11 +81,12 @@ def with_timeout(f):
 
 
 def monkey_patch_eventlet():
-    """This monkey patch provides a workaround for the  
-    ('_GreenThread' object has no attribute 'daemon') issue seen when using paramiko 
-    together with eventlet library of version less then 0.9.17
+    """This monkey patch provides a workaround for the
+    ('_GreenThread' object has no attribute 'daemon') issue seen when using
+    paramiko together with eventlet library of version less then 0.9.17
     """
-    import threading, eventlet
+    import eventlet
+    import threading
 
     if eventlet.__version__ < '0.9.17':
         _current_thread = threading.current_thread
@@ -100,7 +101,7 @@ def monkey_patch_eventlet():
 
 class DellEQLSanISCSIDriver(SanISCSIDriver):
     """Implements commands for Dell EqualLogic SAN ISCSI management.
-    
+
     To enable the driver add the following line to the cinder configuration:
         volume_driver=cinder.volume.drivers.eqlx.DellEQLSanISCSIDriver
 
@@ -109,10 +110,11 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
         - SSH access to the SAN
         - a special user must be created which must be able to
             - create/delete volumes and snapshots;
-            - clone snapshots into volumes; 
+            - clone snapshots into volumes;
             - modify volume access records;
-    
-    The access credentials to the SAN are provided by means of the following flags
+
+    The access credentials to the SAN are provided by means of the following
+    flags
         san_ip=<ip_address>
         san_login=<user name>
         san_password=<user password>
@@ -120,16 +122,16 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
     Thin provision of volumes is enabled by default, to disable it use:
         san_thin_provision=false
 
-    In order to use target CHAP authentication (which is disabled by default) SAN 
-    administrator must create a local CHAP user and specify the following flags 
-    for the driver:
+    In order to use target CHAP authentication (which is disabled by default)
+    SAN administrator must create a local CHAP user and specify the following
+    flags for the driver:
         eqlx_use_chap=true
         eqlx_chap_login=<chap_login>
         eqlx_chap_password=<chap_password>
 
-    eqlx_group_name parameter actually represents the CLI prompt message without '>'
-    ending. E.g. if prompt looks like 'group-0>', then the parameter must be set to 
-    'group-0'
+    eqlx_group_name parameter actually represents the CLI prompt message
+    without '>' ending. E.g. if prompt looks like 'group-0>', then the
+    parameter must be set to 'group-0'
 
     To adjust default 1200 secs ssh keep alive packets sending interval use
         eqlx_ssh_keepalive_interval=<seconds>
@@ -196,8 +198,8 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
             if try_no:
                 time.sleep(FLAGS.eqlx_cli_retries_timeout)
             try:
-                LOG.debug(_("Connecting to the SAN (%s@%s:%d)"), FLAGS.san_login,
-                          FLAGS.san_ip, FLAGS.san_ssh_port)
+                LOG.debug(_("Connecting to the SAN (%s@%s:%d)"),
+                          FLAGS.san_login, FLAGS.san_ip, FLAGS.san_ssh_port)
                 self.ssh = self._connect_to_ssh()
                 LOG.info(_("Connected to the SAN after %d retries"), try_no)
             except Exception as error:
@@ -206,7 +208,8 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
             else:
                 return
 
-        msg = _("unable to connect to the EQL appliance after %(try_no)d retries") % locals()
+        msg = _("unable to connect to the EQL appliance "
+                "after %(try_no)d retries") % locals()
         raise exception.Error(msg)
 
     def set_execute(self, execute):
@@ -221,7 +224,7 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
             return self._run_ssh(command, timeout=FLAGS.eqlx_cli_timeout)
         except Timeout:
             msg = _("Timeout while executing EQL command: %(command)s") % \
-                  locals()
+                locals()
             raise exception.Error(msg)
 
     @with_timeout
@@ -281,7 +284,7 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
         model_update['provider_location'] = lun_id
         if FLAGS.eqlx_use_chap:
             model_update['provider_auth'] = 'CHAP %s %s' % \
-                                            (FLAGS.eqlx_chap_login, FLAGS.eqlx_chap_password)
+                (FLAGS.eqlx_chap_login, FLAGS.eqlx_chap_password)
         return model_update
 
     def _get_space_in_gb(self, val):
@@ -317,7 +320,7 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
 
         try:
             for line in self._execute('pool', 'select',
-              FLAGS.eqlx_pool, 'show'):
+                                      FLAGS.eqlx_pool, 'show'):
                 if line.startswith('TotalCapacity:'):
                     _nop, _nop, val = line.rstrip().partition(' ')
                     data['total_capacity_gb'] = self._get_space_in_gb(val)
@@ -431,12 +434,14 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
 
 
 if __name__ == "__main__":
-    """The following code make it possible to execute a set of arbitrary commands 
-    on the SAN without starting up the nova-volume service. The script requires no 
-    additional configuration beyond one already used by regular nova services.
+    """The following code make it possible to execute a set of arbitrary
+    commands on the SAN without starting up the nova-volume service.
+    The script requires no additional configuration beyond one already used by
+    regular nova services.
     To run the script use the following command line:
 
-    python <nova-pkg-dir>/volume/san.py [--config=<optional-file-with-extra-cfg>] <cmd1> ... <cmdN>
+    python <cinder-pkg-dir>/volume/drivers/eqlx.py \
+    [--config=<optional-file-with-extra-cfg>] <cmd1> ... <cmdN>
 
     NOTE: when working with the source packaged nova use the command line
 
