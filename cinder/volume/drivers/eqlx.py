@@ -311,7 +311,7 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
         data["driver_version"] = '1.0'
         data["storage_protocol"] = 'iSCSI'
 
-        data['reserved_percentage'] = 100
+        data['reserved_percentage'] = 0
         data['QoS_support'] = False
         total = 'infinite'
         free = 'infinite'
