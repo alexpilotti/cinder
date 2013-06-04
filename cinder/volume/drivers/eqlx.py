@@ -284,6 +284,17 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
                                             (FLAGS.eqlx_chap_login, FLAGS.eqlx_chap_password)
         return model_update
 
+    def _get_space_in_gb(self, val):
+        scale = 1.0
+        part = 'GB'
+        if val.endswith('MB'):
+            scale = 1.0 / 1024
+            part = 'MB'
+        elif val.endswith('TB'):
+            scale = 1.0 * 1024
+            part = 'TB'
+        return scale * float(val.partition(part)[0])
+
     def _update_volume_status(self):
         """Retrieve status info from volume group."""
 
@@ -309,18 +320,10 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
               FLAGS.eqlx_pool, 'show'):
                 if line.startswith('TotalCapacity:'):
                     _nop, _nop, val = line.rstrip().partition(' ')
-                    if val.endswith('GB'):
-                        total = float(val.partition('GB')[0])
-                    elif val.endswith('TB'):
-                        total = 1000 * float(val.partition('TB')[0])
-                    data['total_capacity_gb'] = total
+                    data['total_capacity_gb'] = self._get_space_in_gb(val)
                 if line.startswith('FreeSpace:'):
                     _nop, _nop, val = line.rstrip().partition(' ')
-                    if val.endswith('GB'):
-                        free = float(val.partition('GB')[0])
-                    elif val.endswith('TB'):
-                        free = 1000 * float(val.partition('TB')[0])
-                    data['free_capacity_gb'] = free
+                    data['free_capacity_gb'] = self._get_space_in_gb(val)
         except exception.ProcessExecutionError:
             LOG.exception(_('Error refreshing volume stats'))
 
