@@ -313,10 +313,9 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
 
         data['reserved_percentage'] = 0
         data['QoS_support'] = False
-        total = 'infinite'
-        free = 'infinite'
-        data['total_capacity_gb'] = total
-        data['free_capacity_gb'] = free
+
+        data['total_capacity_gb'] = 'infinite'
+        data['free_capacity_gb'] = 'infinite' 
 
         try:
             for line in self._execute('pool', 'select',
