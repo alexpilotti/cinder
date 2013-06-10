@@ -317,17 +317,13 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
         data['total_capacity_gb'] = 'infinite'
         data['free_capacity_gb'] = 'infinite'
 
-        try:
-            for line in self._execute('pool', 'select',
-                                      FLAGS.eqlx_pool, 'show'):
-                if line.startswith('TotalCapacity:'):
-                    _nop, _nop, val = line.rstrip().partition(' ')
-                    data['total_capacity_gb'] = self._get_space_in_gb(val)
-                if line.startswith('FreeSpace:'):
-                    _nop, _nop, val = line.rstrip().partition(' ')
-                    data['free_capacity_gb'] = self._get_space_in_gb(val)
-        except exception.ProcessExecutionError:
-            LOG.exception(_('Error refreshing volume stats'))
+        for line in self._execute('pool', 'select', FLAGS.eqlx_pool, 'show'):
+            if line.startswith('TotalCapacity:'):
+                _nop, _nop, val = line.rstrip().partition(' ')
+                data['total_capacity_gb'] = self._get_space_in_gb(val)
+            if line.startswith('FreeSpace:'):
+                _nop, _nop, val = line.rstrip().partition(' ')
+                data['free_capacity_gb'] = self._get_space_in_gb(val)
 
         self._stats = data
 
