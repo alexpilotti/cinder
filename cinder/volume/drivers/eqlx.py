@@ -315,7 +315,7 @@ class DellEQLSanISCSIDriver(SanISCSIDriver):
         data['QoS_support'] = False
 
         data['total_capacity_gb'] = 'infinite'
-        data['free_capacity_gb'] = 'infinite' 
+        data['free_capacity_gb'] = 'infinite'
 
         try:
             for line in self._execute('pool', 'select',
