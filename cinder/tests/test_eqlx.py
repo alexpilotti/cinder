@@ -1,4 +1,5 @@
 import mox
+import paramiko
 
 from cinder import context
 from cinder import exception
@@ -9,6 +10,7 @@ from cinder.volume import configuration as conf
 from cinder.volume.drivers import eqlx
 
 LOG = logging.getLogger(__name__)
+FLAGS = flags.FLAGS
 
 
 class DellEQLSanISCSIDriverTestCase(test.TestCase):
@@ -23,6 +25,9 @@ class DellEQLSanISCSIDriverTestCase(test.TestCase):
         configuration.san_ssh_port = 16022
         configuration.san_thin_provision = True
         configuration.append_config_values(mox.IgnoreArg())
+        FLAGS.eqlx_pool = 'non-default'
+        FLAGS.eqlx_use_chap = True
+        FLAGS.eqlx_verbose_ssh = True
         self._context = context.get_admin_context()
         self.driver = eqlx.DellEQLSanISCSIDriver(configuration=configuration)
         self.driver._execute = self.mox.CreateMock(self.driver._execute)
@@ -37,6 +42,12 @@ class DellEQLSanISCSIDriverTestCase(test.TestCase):
             'target_portal': '%s:3260' % self.driver._group_ip,
             'target_iqn': self.fake_iqn,
             'volume_id': 1}
+        self._model_update = {
+            'provider_location': "%s:3260,1 %s 0" % (self.driver._group_ip,
+                                                     self.fake_iqn),
+            'provider_auth': 'CHAP %s %s' % (FLAGS.eqlx_chap_login,
+                                             FLAGS.eqlx_chap_password)
+        }
 
     def _fake_get_iscsi_properties(self, volume):
         return self.properties
@@ -47,13 +58,12 @@ class DellEQLSanISCSIDriverTestCase(test.TestCase):
     def test_create_volume(self):
         volume = {'name': self.volume_name, 'size': 1}
         self.driver._execute('volume', 'create', volume['name'],
-                             "%sG" % (volume['size']), 'thin-provision').\
+                             "%sG" % (volume['size']), 'pool',
+                             FLAGS.eqlx_pool, 'thin-provision').\
             AndReturn(['iSCSI target name is %s.' % self.fake_iqn])
         self.mox.ReplayAll()
         model_update = self.driver.create_volume(volume)
-        expected_location = "%s:3260,1 %s 0" % (self.driver._group_ip,
-                                                self.fake_iqn)
-        self.assertEqual(model_update['provider_location'], expected_location)
+        self.assertEqual(model_update, self._model_update)
 
     def test_delete_volume(self):
         volume = {'name': self.volume_name, 'size': 1}
@@ -82,17 +92,20 @@ class DellEQLSanISCSIDriverTestCase(test.TestCase):
                              volume['name']).\
             AndReturn(['iSCSI target name is %s.' % self.fake_iqn])
         self.mox.ReplayAll()
-        self.driver.create_volume_from_snapshot(volume, snapshot)
+        model_update = self.driver.create_volume_from_snapshot(volume,
+                                                               snapshot)
+        self.assertEqual(model_update, self._model_update)
 
     def test_create_cloned_volume(self):
         src_vref = {'id': 'fake_uuid'}
         volume = {'name': self.volume_name}
-        src_volume_name = flags.FLAGS.volume_name_template % src_vref['id']
+        src_volume_name = FLAGS.volume_name_template % src_vref['id']
         self.driver._execute('volume', 'select', src_volume_name, 'clone',
                              volume['name']).\
             AndReturn(['iSCSI target name is %s.' % self.fake_iqn])
         self.mox.ReplayAll()
-        self.driver.create_cloned_volume(volume, src_vref)
+        model_update = self.driver.create_cloned_volume(volume, src_vref)
+        self.assertEqual(model_update, self._model_update)
 
     def test_delete_snapshot(self):
         snapshot = {'name': 'fakesnap', 'volume_name': 'fakevolume_name'}
@@ -107,7 +120,8 @@ class DellEQLSanISCSIDriverTestCase(test.TestCase):
                        self._fake_get_iscsi_properties)
         self.driver._execute('volume', 'select', volume['name'], 'access',
                              'create', 'initiator',
-                             self.connector['initiator'])
+                             self.connector['initiator'], 'authmethod chap',
+                             'username', FLAGS.eqlx_chap_login)
         self.mox.ReplayAll()
         iscsi_properties = self.driver.initialize_connection(volume,
                                                              self.connector)
@@ -138,3 +152,26 @@ class DellEQLSanISCSIDriverTestCase(test.TestCase):
         self.driver._update_volume_status()
         self.assertEqual(self.driver._stats['total_capacity_gb'], 111.0)
         self.assertEqual(self.driver._stats['free_capacity_gb'], 11.0)
+
+    def test_get_space_in_gb(self):
+        self.assertEqual(self.driver._get_space_in_gb('123.0GB'), 123.0)
+        self.assertEqual(self.driver._get_space_in_gb('123.0TB'), 123.0 * 1024)
+        self.assertEqual(self.driver._get_space_in_gb('1024.0MB'), 1.0)
+
+    def test_get_output(self):
+
+        def _fake_recv(ignore_arg):
+            return '%s> ' % FLAGS.eqlx_group_name
+
+        chan = self.mox.CreateMock(paramiko.Channel)
+        self.stubs.Set(chan, "recv", _fake_recv)
+        self.assertEqual(self.driver._get_output(chan), [_fake_recv(None)])
+
+    def test_get_prefixed_value(self):
+        lines = ['Line1 passed', 'Line1 failed']
+        prefix = ['Line1', 'Line2']
+        expected_output = [' passed', None]
+        self.assertEqual(self.driver._get_prefixed_value(lines, prefix[0]),
+                         expected_output[0])
+        self.assertEqual(self.driver._get_prefixed_value(lines, prefix[1]),
+                         expected_output[1])
