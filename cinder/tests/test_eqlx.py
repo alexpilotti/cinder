@@ -175,3 +175,41 @@ class DellEQLSanISCSIDriverTestCase(test.TestCase):
                          expected_output[0])
         self.assertEqual(self.driver._get_prefixed_value(lines, prefix[1]),
                          expected_output[1])
+
+    def test_run_ssh(self):
+        chan = self.mox.CreateMock(paramiko.Channel)
+        self.driver.ssh = mox.MockAnything()
+        self.mox.StubOutWithMock(self.driver.ssh, 'open_session')
+        self.mox.StubOutWithMock(self.driver, '_get_output')
+        self.mox.StubOutWithMock(chan, 'invoke_shell')
+        expected_output = ['NoError: test run']
+        self.driver.ssh.open_session().AndReturn(chan)
+        chan.invoke_shell()
+        self.driver._get_output(chan).AndReturn(expected_output)
+        cmd = 'this is dummy command'
+        chan.send('stty columns 255' + '\r')
+        self.driver._get_output(chan).AndReturn(expected_output)
+        chan.send(cmd + '\r')
+        self.driver._get_output(chan).AndReturn(expected_output)
+        chan.close()
+        self.mox.ReplayAll()
+        self.assertEqual(self.driver._run_ssh(cmd), expected_output)
+
+    def test_run_ssh_error(self):
+        chan = self.mox.CreateMock(paramiko.Channel)
+        self.driver.ssh = mox.MockAnything()
+        self.mox.StubOutWithMock(self.driver.ssh, 'open_session')
+        self.mox.StubOutWithMock(self.driver, '_get_output')
+        self.mox.StubOutWithMock(chan, 'invoke_shell')
+        expected_output = ['Error: test run', '% Error']
+        self.driver.ssh.open_session().AndReturn(chan)
+        chan.invoke_shell()
+        self.driver._get_output(chan).AndReturn(expected_output)
+        cmd = 'this is dummy command'
+        chan.send('stty columns 255' + '\r')
+        self.driver._get_output(chan).AndReturn(expected_output)
+        chan.send(cmd + '\r')
+        self.driver._get_output(chan).AndReturn(expected_output)
+        chan.close()
+        self.mox.ReplayAll()
+        self.assertRaises(exception.Error, self.driver._run_ssh, cmd)
