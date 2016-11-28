@@ -1361,6 +1361,9 @@ class RemoteFSSnapDriverBase(RemoteFSDriver, driver.SnapshotVD):
                         'for creation of snapshot %s.') % snapshot.id
                 raise exception.RemoteFSException(msg)
 
+        # TODO(alexpilotti): Validate new_snap_path to make sure Nova did the
+        # right thing
+
     def _delete_snapshot_online(self, context, snapshot, info):
         # Update info over the course of this method
         # active file never changes
@@ -1451,7 +1454,8 @@ class RemoteFSSnapDriverBase(RemoteFSDriver, driver.SnapshotVD):
         # Delete stale file
         path_to_delete = os.path.join(
             self._local_volume_dir(snapshot.volume), file_to_delete)
-        self._execute('rm', '-f', path_to_delete, run_as_root=True)
+        # TODO(alexpilotti): this is not necessary on Windows
+        #self._delete(path_to_delete)
 
 
 class RemoteFSSnapDriver(RemoteFSSnapDriverBase):

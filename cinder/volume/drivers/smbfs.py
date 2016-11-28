@@ -166,6 +166,7 @@ class SmbfsDriver(remotefs_drv.RemoteFSSnapDriver):
         }
 
     def do_setup(self, context):
+        super(SmbfsDriver, self).do_setup(context)
         image_utils.check_qemu_img_version(self._MINIMUM_QEMU_IMG_VERSION)
 
         config = self.configuration.smbfs_shares_config
@@ -459,15 +460,6 @@ class SmbfsDriver(remotefs_drv.RemoteFSSnapDriver):
                       smbfs_share)
             return False
         return True
-
-    def _create_snapshot_online(self, snapshot, backing_filename,
-                                new_snap_path):
-        msg = _("This driver does not support snapshotting in-use volumes.")
-        raise exception.SmbfsException(msg)
-
-    def _delete_snapshot_online(self, context, snapshot, info):
-        msg = _("This driver does not support deleting in-use snapshots.")
-        raise exception.SmbfsException(msg)
 
     def _do_create_snapshot(self, snapshot, backing_filename, new_snap_path):
         self._check_snapshot_support(snapshot)

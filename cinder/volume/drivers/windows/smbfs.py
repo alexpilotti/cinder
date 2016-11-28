@@ -151,6 +151,10 @@ class WindowsSmbfsDriver(smbfs.SmbfsDriver):
                          backing_file_name)
 
     def _do_create_snapshot(self, snapshot, backing_file, new_snap_path):
+        if snapshot.volume.status == 'in-use':
+            LOG.debug("The snapshot is created by Nova")
+            return
+
         backing_file_full_path = os.path.join(
             self._local_volume_dir(snapshot['volume']),
             backing_file)
